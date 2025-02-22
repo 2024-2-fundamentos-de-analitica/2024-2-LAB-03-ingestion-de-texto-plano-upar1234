@@ -9,5 +9,8 @@ setup(
     install_requires=[
         "pytest",
         "pandas",
+        "scikit-learn",
+        "ipykernel",
+        "xlrd",
     ],
 )

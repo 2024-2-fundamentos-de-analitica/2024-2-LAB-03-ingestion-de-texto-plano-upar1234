@@ -1,230 +1,141 @@
+# flake8: noqa: E501
 """Autograding script."""
 
-from homework import pregunta_01 as pregunta
+import gzip
+import json
+import os
+import pickle
+
+import pandas as pd  # type: ignore
+
+# ------------------------------------------------------------------------------
+MODEL_FILENAME = "files/models/model.pkl.gz"
+MODEL_COMPONENTS = [
+    "OneHotEncoder",
+    "PCA",
+    "StandardScaler",
+    "SelectKBest",
+    "SVC",
+]
+SCORES = [
+    0.661,
+    0.666,
+]
+METRICS = [
+    {
+        "type": "metrics",
+        "dataset": "train",
+        "precision": 0.691,
+        "balanced_accuracy": 0.661,
+        "recall": 0.370,
+        "f1_score": 0.482,
+    },
+    {
+        "type": "metrics",
+        "dataset": "test",
+        "precision": 0.673,
+        "balanced_accuracy": 0.661,
+        "recall": 0.370,
+        "f1_score": 0.482,
+    },
+    {
+        "type": "cm_matrix",
+        "dataset": "train",
+        "true_0": {"predicted_0": 15440, "predicted_1": None},
+        "true_1": {"predicted_0": None, "predicted_1": 1735},
+    },
+    {
+        "type": "cm_matrix",
+        "dataset": "test",
+        "true_0": {"predicted_0": 6710, "predicted_1": None},
+        "true_1": {"predicted_0": None, "predicted_1": 730},
+    },
+]
 
 
-def test_01():
-    """Test homework"""
+# ------------------------------------------------------------------------------
+#
+# Internal tests
+#
+def _load_model():
+    """Generic test to load a model"""
+    assert os.path.exists(MODEL_FILENAME)
+    with gzip.open(MODEL_FILENAME, "rb") as file:
+        model = pickle.load(file)
+    assert model is not None
+    return model
 
-    df = pregunta.pregunta_01()
 
-    # Test 1
-    assert df.cluster.to_list() == list(range(1, 14))
+def _test_components(model):
+    """Test components"""
+    assert "GridSearchCV" in str(type(model))
+    current_components = [str(model.estimator[i]) for i in range(len(model.estimator))]
+    for component in MODEL_COMPONENTS:
+        assert any(component in x for x in current_components)
 
-    # Test 2
-    assert df.cantidad_de_palabras_clave.to_list() == [
-        105,
-        102,
-        89,
-        60,
-        52,
-        51,
-        42,
-        38,
-        35,
-        27,
-        22,
-        22,
-        17,
-    ]
 
-    # Test 3
-    assert df.porcentaje_de_palabras_clave.to_list() == [
-        15.9,
-        15.4,
-        13.4,
-        9.1,
-        7.9,
-        7.7,
-        6.3,
-        5.7,
-        5.3,
-        4.1,
-        3.3,
-        3.3,
-        2.6,
-    ]
+def _load_grading_data():
+    """Load grading data"""
+    with open("files/grading/x_train.pkl", "rb") as file:
+        x_train = pickle.load(file)
 
-    # Test 4
-    assert df.principales_palabras_clave.to_list()[0] == (
-        "maximum power point tracking, "
-        "fuzzy-logic based control, "
-        "photo voltaic (pv), "
-        "photo-voltaic system, "
-        "differential evolution algorithm, "
-        "evolutionary algorithm, "
-        "double-fed induction generator (dfig), "
-        "ant colony optimisation, "
-        "photo voltaic array, "
-        "firefly algorithm, "
-        "partial shade"
-    )
+    with open("files/grading/y_train.pkl", "rb") as file:
+        y_train = pickle.load(file)
 
-    assert df.principales_palabras_clave.to_list()[1] == (
-        "support vector machine, "
-        "long short-term memory, "
-        "back-propagation neural network, "
-        "convolution neural network, "
-        "speed wind prediction, "
-        "energy consumption, "
-        "wind power forecasting, "
-        "extreme learning machine, "
-        "recurrent-neural-network (rnn), "
-        "radial basis "
-        "function (rbf) networks, "
-        "wind farm"
-    )
+    with open("files/grading/x_test.pkl", "rb") as file:
+        x_test = pickle.load(file)
 
-    assert df.principales_palabras_clave.to_list()[2] == (
-        "smart grid, "
-        "wind power, "
-        "reinforcement learning, "
-        "energy management, "
-        "energy efficiency, "
-        "solar energy, "
-        "deep reinforcement learning, "
-        "demand-response (dr), "
-        "internet of things, "
-        "energy harvester, "
-        "q-learning"
-    )
+    with open("files/grading/y_test.pkl", "rb") as file:
+        y_test = pickle.load(file)
 
-    assert df.principales_palabras_clave.to_list()[3] == (
-        "wind turbine, "
-        "fault diagnosis, "
-        "biodiesel, "
-        "failure detection, "
-        "response-surface methodology, "
-        "condition monitoring, "
-        "load forecasting, "
-        "energy consumption forecast, "
-        "anomalies detection, "
-        "optimization-based algorithm, "
-        "supervisory control and data acquisition"
-    )
+    return x_train, y_train, x_test, y_test
 
-    assert df.principales_palabras_clave.to_list()[4] == (
-        "electric vehicle, "
-        "lithium-ion batteries, "
-        "state of charge, "
-        "state of health, "
-        "hybrid-electric vehicle, "
-        "energy management strategies, "
-        "energy management system, "
-        "remaining useful life, "
-        "battery management system, "
-        "transfer learning, "
-        "hybrid energy storage"
-    )
 
-    assert df.principales_palabras_clave.to_list()[5] == (
-        "particle swarm optimization, "
-        "distribute generation, "
-        "solar irradiance, "
-        "artificial bee colonies, "
-        "energy storage systems, "
-        "bat algorithm, "
-        "gravitational search algorithm, "
-        "distributed system, "
-        "multi-objective swarm optimization (mopso), "
-        "optimal power-flow (opf), "
-        "load-frequency control"
-    )
+def _test_scores(model, x_train, y_train, x_test, y_test):
+    """Test scores"""
+    assert model.score(x_train, y_train) > SCORES[0]
+    assert model.score(x_test, y_test) > SCORES[1]
 
-    assert df.principales_palabras_clave.to_list()[6] == (
-        "multi-objective optimization, "
-        "energy storage, "
-        "economic dispatch, "
-        "non-dominated sorting genetic algorithm, "
-        "sensitive analysis, "
-        "hybrid renewable energy source, "
-        "plug-in electric vehicle, "
-        "combined-heat and power, "
-        "multi-objective genetic algorithm, "
-        "unit-commitment, "
-        "dc-dc converters"
-    )
 
-    assert df.principales_palabras_clave.to_list()[7] == (
-        "genetic algorithm, "
-        "demand-side management, "
-        "energy-saving, "
-        "hybrid electric system (hes), "
-        "wind turbine blade, "
-        "data-driven modelling, "
-        "simulated annealing, "
-        "solar forecasting, "
-        "geographic information system, "
-        "renewable energy system, "
-        "cogeneration"
-    )
+def _load_metrics():
+    assert os.path.exists("files/output/metrics.json")
+    metrics = []
+    with open("files/output/metrics.json", "r", encoding="utf-8") as file:
+        for line in file:
+            metrics.append(json.loads(line))
+    return metrics
 
-    assert df.principales_palabras_clave.to_list()[8] == (
-        "anfis, "
-        "global solar irradiance, "
-        "solar irradiance forecast, "
-        "genetic programing, "
-        "islanding detection, "
-        "expert system, "
-        "distributed networks, "
-        "evolutionary computation, "
-        "wavelet-based neural network, "
-        "root mean square errors, "
-        "virtual power plant"
-    )
 
-    assert df.principales_palabras_clave.to_list()[9] == (
-        "micro grid, "
-        "multi-agent systems, "
-        "distributed energy resource, "
-        "batteries energy storage system, "
-        "dc micro grid, "
-        "pitch-control, "
-        "droop control, "
-        "hybrid ac/dc microgrid, "
-        "voltage regulation, "
-        "superconducting magnetic energy storage, "
-        "distributed-control"
-    )
+def _test_metrics(metrics):
 
-    assert df.principales_palabras_clave.to_list()[10] == (
-        "hydrogen, "
-        "biochar, "
-        "biomass, "
-        "biogas, "
-        "microbial fuel cell, "
-        "gasification, "
-        "biofuel, "
-        "ethanol, "
-        "engine performance, pyrolysis, "
-        "anaerobic digester"
-    )
+    for index in [0, 1]:
+        assert metrics[index]["type"] == METRICS[index]["type"]
+        assert metrics[index]["dataset"] == METRICS[index]["dataset"]
+        assert metrics[index]["precision"] > METRICS[index]["precision"]
+        assert metrics[index]["balanced_accuracy"] > METRICS[index]["balanced_accuracy"]
+        assert metrics[index]["recall"] > METRICS[index]["recall"]
+        assert metrics[index]["f1_score"] > METRICS[index]["f1_score"]
 
-    assert df.principales_palabras_clave.to_list()[11] == (
-        "state of charge (soc) estimation, "
-        "radial basis function, "
-        "short-term load forecasting, "
-        "computational fluid dynamics, "
-        "generalized-regression neural network, "
-        "monte-carlo simulation, "
-        "multiple linear regression, "
-        "power generation, "
-        "nonlinear auto-regressive exogenous (narx) model neural "
-        "networks, "
-        "surrogate model, "
-        "extreme gradient boosting"
-    )
+    for index in [2, 3]:
+        assert metrics[index]["type"] == METRICS[index]["type"]
+        assert metrics[index]["dataset"] == METRICS[index]["dataset"]
+        assert (
+            metrics[index]["true_0"]["predicted_0"]
+            > METRICS[index]["true_0"]["predicted_0"]
+        )
+        assert (
+            metrics[index]["true_1"]["predicted_1"]
+            > METRICS[index]["true_1"]["predicted_1"]
+        )
 
-    assert df.principales_palabras_clave.to_list()[12] == (
-        "pem fuel cell, "
-        "solid-oxide fuel cell, "
-        "deep-belief networks, "
-        "energy optimisation, "
-        "particles-size distributions, "
-        "biomass gasification, "
-        "exergy, "
-        "battery management, "
-        "hydrogen production, "
-        "numeric simulation, "
-        "system-identification"
-    )
+
+def test_homework():
+    """Tests"""
+
+    model = _load_model()
+    x_train, y_train, x_test, y_test = _load_grading_data()
+    metrics = _load_metrics()
+
+    _test_components(model)
+    _test_scores(model, x_train, y_train, x_test, y_test)
+    _test_metrics(metrics)

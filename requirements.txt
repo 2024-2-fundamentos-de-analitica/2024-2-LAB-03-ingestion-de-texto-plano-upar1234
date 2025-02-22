@@ -1,2 +1,5 @@
-pytest
+ipykernel
 pandas
+pytest
+scikit-learn
+xlrd
